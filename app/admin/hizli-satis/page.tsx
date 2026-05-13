@@ -88,16 +88,18 @@ const filteredCariler = cariler.filter(c =>
   const indirimTutari = (araToplam * indirimOrani) / 100;
   const genelToplam = araToplam - indirimTutari;
 
-  const handleCheckout = async (type: 'Nakit' | 'Kredi Kartı' | 'Veresiye') => {
+const handleCheckout = async (type: 'Nakit' | 'Kredi Kartı' | 'Veresiye') => {
     if (cart.length === 0) return;
+    
+    // 1. Kontrol: Veresiye ise cari seçilmiş mi?
     if (type === 'Veresiye' && !selectedCari) {
       alert("Veresiye satış için lütfen bir cari/üye seçiniz!");
-      setLastInvoice(fatura); // Kaydedilen faturayı sakla
-      return;
+      return; // fatura henüz oluşmadığı için setLastInvoice burada çağrılamaz
     }
 
     try {
-      const { data: fatura, error: fErr } = await supabase.from('faturalar').insert({
+      // 2. Fatura Başlığını Oluştur
+      const { data: yeniFatura, error: fErr } = await supabase.from('faturalar').insert({
         fatura_no: `PS-${Math.floor(100000 + Math.random() * 900000)}`,
         tür: 'Satış',
         cari_id: selectedCari?.id || '00000000-0000-0000-0000-000000000000',
@@ -110,8 +112,9 @@ const filteredCariler = cariler.filter(c =>
 
       if (fErr) throw fErr;
 
+      // 3. Fatura Satırlarını Oluştur
       const satirlar = cart.map(item => ({
-        fatura_id: fatura.id,
+        fatura_id: yeniFatura.id,
         stok_id: item.id,
         miktar: item.miktar,
         birim_fiyat: item.satis_fiyati,
@@ -119,13 +122,24 @@ const filteredCariler = cariler.filter(c =>
         satir_toplami: item.miktar * item.satis_fiyati
       }));
 
-      await supabase.from('fatura_satirlari').insert(satirlar);
-      await supabase.rpc('satis_onayla', { f_id: fatura.id });
+      const { error: sErr } = await supabase.from('fatura_satirlari').insert(satirlar);
+      if (sErr) throw sErr;
 
+      // 4. Stok ve Cari Bakiyelerini Güncelleyen RPC'yi Çalıştır
+      const { error: rpcErr } = await supabase.rpc('satis_onayla', { f_id: yeniFatura.id });
+      if (rpcErr) throw rpcErr;
+
+      // Başarılı işlem sonrası state güncellemeleri
+      setLastInvoice(yeniFatura); // Artık 'yeniFatura' tanımlı, güvenle kaydedebilirsin
       alert("Satış Başarıyla Tamamlandı!");
       setCart([]);
       setSelectedCari(null);
-    } catch (error: any) { alert(error.message); }
+      setBarcode('');
+      
+    } catch (error: any) { 
+      console.error("Satış hatası:", error);
+      alert("Satış sırasında bir hata oluştu: " + error.message); 
+    }
   };
 
   return (

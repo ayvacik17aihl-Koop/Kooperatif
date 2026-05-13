@@ -141,7 +141,7 @@ const handleSave = async (onay = false) => {
       // 3. EĞER ONAY BUTONUNA BASILDIYSA: Veritabanındaki 'fatura_onayla' fonksiyonunu çalıştır
       if (onay) {
         const { error: onayErr } = await supabase.rpc('fatura_onayla', { f_id: faturaData.id });
-        if (ononayErr) throw onayErr;
+        if (onayErr) throw onayErr;
         alert("Fatura başarıyla onaylandı. Stok, Cari ve Kasa güncellendi!");
       } else {
         alert("Fatura taslak olarak kaydedildi.");
