@@ -14,7 +14,8 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) alert(error.message);
-    else router.push('/admin/users'); // Giriş sonrası Admin paneline yönlendir
+    else router.refresh(); 
+  router.push('/admin/dashboard'); // Giriş sonrası Admin paneline yönlendir
   };
 
   return (

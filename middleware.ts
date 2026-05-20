@@ -36,29 +36,40 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  // 1. ADIM: Oturum Kontrolü (Zaten vardı)
-  if (request.nextUrl.pathname.startsWith('/admin') && !user) {
-    return NextResponse.redirect(new URL('/login', request.url))
+  // 1. DÖNGÜ KIRICI: Giriş yapmış kullanıcı /login'e giderse Dashboard'a at
+  // Bu blok HERHANGİ bir if'in içinde olmamalı, bağımsız çalışmalı.
+  if (user && request.nextUrl.pathname === '/login') {
+    return NextResponse.redirect(new URL('/admin/dashboard', request.url))
   }
 
-  // 2. ADIM: Rol Bazlı Yetkilendirme
-  if (user) {
-    const role = user.user_metadata?.role // Kayıt ederken verdiğiniz rol
+  // 2. YETKİ KONTROLÜ: Sadece /admin yollarını denetle
+  if (request.nextUrl.pathname.startsWith('/admin')) {
+    // Giriş yapmamışsa login'e at
+    if (!user) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
 
-    // Personelin girmesini istemediğiniz özel sayfaları buraya ekleyin
-    // Örneğin: /admin/users (Kullanıcı yönetimi) veya /admin/stok/fiyat-yonetimi
+    // Rolü veritabanından çek (Profiles tablosu)
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+    const role = profile?.role || 'personel';
+    //const role = profile?.role
+
     const adminOnlyPaths = [
       '/admin/users',
       '/admin/stok/fiyat-yonetimi',
-      '/admin/kasa' // Örnek: Kasaya da girmesinler diyorsanız
+      '/admin/ayarlar'
     ]
 
     const isTryingToAccessAdminOnly = adminOnlyPaths.some(path => 
       request.nextUrl.pathname.startsWith(path)
     )
 
+    // Personel kısıtlaması
     if (role === 'personel' && isTryingToAccessAdminOnly) {
-      // Yetkisi yoksa Dashboard'a geri gönder veya bir hata sayfasına at
       return NextResponse.redirect(new URL('/admin/dashboard', request.url))
     }
   }
@@ -67,5 +78,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*'],
+  // Hem admin'i hem login'i matcher'a eklemeliyiz ki döngü kırıcı çalışsın
+  matcher: ['/admin/:path*', '/login'],
 }
