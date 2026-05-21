@@ -1,15 +1,13 @@
 'use client';
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase';
-import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [errorMsg, setErrorMsg] = useState<string | null>(null); // Hata mesajı stateti
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const supabase = createClient();
-  const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,14 +16,14 @@ export default function LoginPage() {
 
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
-    setLoading(false);
-
     if (error) {
-      // Hatayı ekranda göstermek için state'e aktarıyoruz
+      setLoading(false);
       setErrorMsg(error.message === 'Invalid login credentials' ? 'E-posta veya şifre hatalı!' : error.message);
     } else {
-      router.refresh(); 
-      router.push('/admin/dashboard'); 
+      // router.refresh() ve router.push yerine sert yönlendirme yapıyoruz.
+      // window.location.href tarayıcıyı sayfayı sıfırdan yenileyerek açmaya zorlar.
+      // Bu esnada tüm auth çerezleri diske hatasız yazılır ve Middleware oturumu %100 yakalar.
+      window.location.href = '/admin/dashboard'; 
     }
   };
 
@@ -41,8 +39,22 @@ export default function LoginPage() {
           </div>
         )}
 
-        <input className="w-full p-2 mb-4 border rounded text-black" type="email" placeholder="E-posta" onChange={(e) => setEmail(e.target.value)} required />
-        <input className="w-full p-2 mb-4 border rounded text-black" type="password" placeholder="Şifre" onChange={(e) => setPassword(e.target.value)} required />
+        <input 
+          className="w-full p-2 mb-4 border rounded text-black" 
+          type="email" 
+          placeholder="E-posta" 
+          onChange={(e) => setEmail(e.target.value)} 
+          disabled={loading}
+          required 
+        />
+        <input 
+          className="w-full p-2 mb-4 border rounded text-black" 
+          type="password" 
+          placeholder="Şifre" 
+          onChange={(e) => setPassword(e.target.value)} 
+          disabled={loading}
+          required 
+        />
         
         <button 
           disabled={loading} 

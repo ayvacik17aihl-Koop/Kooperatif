@@ -1,6 +1,21 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+interface Izin {
+  modul_adi: string
+  islem_tipi: string
+}
+
+interface Rol {
+  rol_adi: string
+  is_superadmin: boolean
+  izinler: Izin[] | null
+}
+
+interface UserRoleResponse {
+  roller: Rol | null
+}
+
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
     request: {
@@ -35,42 +50,63 @@ export async function middleware(request: NextRequest) {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
+  const currentPath = request.nextUrl.pathname
 
-  // 1. DÖNGÜ KIRICI: Giriş yapmış kullanıcı /login'e giderse Dashboard'a at
-  // Bu blok HERHANGİ bir if'in içinde olmamalı, bağımsız çalışmalı.
-  if (user && request.nextUrl.pathname === '/login') {
+  if (user && currentPath === '/login') {
     return NextResponse.redirect(new URL('/admin/dashboard', request.url))
   }
 
-  // 2. YETKİ KONTROLÜ: Sadece /admin yollarını denetle
-  if (request.nextUrl.pathname.startsWith('/admin')) {
-    // Giriş yapmamışsa login'e at
+  if (currentPath.startsWith('/admin')) {
     if (!user) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
 
-    // Rolü veritabanından çek (Profiles tablosu)
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-    const role = profile?.role || 'personel';
-    //const role = profile?.role
+    const { data: userRolesData } = await supabase
+      .from('kullanici_rolleri')
+      .select(`
+        roller (
+          rol_adi,
+          is_superadmin,
+          izinler (
+            modul_adi,
+            islem_tipi
+          )
+        )
+      `)
+      .eq('kullanici_id', user.id)
 
-    const adminOnlyPaths = [
-      '/admin/users',
-      '/admin/stok/fiyat-yonetimi',
-      '/admin/ayarlar'
-    ]
+    const userRoles = (userRolesData as unknown as UserRoleResponse[]) || []
 
-    const isTryingToAccessAdminOnly = adminOnlyPaths.some(path => 
-      request.nextUrl.pathname.startsWith(path)
+    const isSuperAdmin = userRoles.some(
+      (ur) => ur.roller?.is_superadmin === true
     )
 
-    // Personel kısıtlaması
-    if (role === 'personel' && isTryingToAccessAdminOnly) {
-      return NextResponse.redirect(new URL('/admin/dashboard', request.url))
+    if (isSuperAdmin) {
+      return response
+    }
+
+    const userPermissions = userRoles.flatMap((ur) => ur.roller?.izinler || [])
+
+    const pathModules: { [key: string]: string } = {
+      '/admin/users': 'uyeler',
+      '/admin/ayarlar': 'ayarlar',
+      '/admin/stok': 'stok',
+      '/admin/kasa': 'muhasebe',
+      '/admin/faturalar': 'muhasebe'
+    }
+
+    const requiredModulePath = Object.keys(pathModules).find(path => currentPath.startsWith(path))
+
+    if (requiredModulePath) {
+      const targetModule = pathModules[requiredModulePath]
+      
+      const hasPermission = userPermissions.some(
+        (perm) => perm.modul_adi === targetModule && (perm.islem_tipi === 'READ' || perm.islem_tipi === 'ALL')
+      )
+
+      if (!hasPermission && currentPath !== '/admin/dashboard') {
+        return NextResponse.redirect(new URL('/admin/dashboard', request.url))
+      }
     }
   }
 
@@ -78,6 +114,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Hem admin'i hem login'i matcher'a eklemeliyiz ki döngü kırıcı çalışsın
   matcher: ['/admin/:path*', '/login'],
 }
