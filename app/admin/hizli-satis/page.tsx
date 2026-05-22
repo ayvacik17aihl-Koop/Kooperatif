@@ -88,11 +88,10 @@ const filteredCariler = cariler.filter(c =>
   const indirimTutari = (araToplam * indirimOrani) / 100;
   const genelToplam = araToplam - indirimTutari;
 
-<<<<<<< HEAD
-  const handleCheckout = async (type: 'Nakit' | 'Kredi Kartı' | 'Veresiye') => {
-=======
+
+
 const handleCheckout = async (type: 'Nakit' | 'Kredi Kartı' | 'Veresiye') => {
->>>>>>> 5b1d8fcfed96a1f637828aefd3c444965ec56010
+
     if (cart.length === 0) return;
     
     // 1. Kontrol: Veresiye ise cari seçilmiş mi?

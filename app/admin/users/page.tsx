@@ -17,7 +17,6 @@ export default async function AdminUsersPage() {
 
   return (
 
-  
     <div className="p-8 bg-white min-h-screen">
       <div className="max-w-5xl mx-auto">
         <h1 className="text-3xl font-extrabold text-gray-800 mb-8 border-b pb-4">
