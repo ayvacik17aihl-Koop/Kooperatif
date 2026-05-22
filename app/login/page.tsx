@@ -93,7 +93,7 @@ export default function LoginPage() {
         {/* Logo & Başlık */}
         <div className="text-center space-y-2">
           <div className="w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center mx-auto text-white shadow-lg shadow-indigo-500/20">
-            <Shield size={24} />
+            <Shield size={48} />
           </div>
           <h2 className="text-2xl font-black tracking-tight">Merkezi Giriş Kapısı</h2>
           <p className="text-zinc-500 text-xs font-medium">Kooperatif Ortak, Cari ve Personel Portalı</p>
